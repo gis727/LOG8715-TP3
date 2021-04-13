@@ -84,7 +84,7 @@ public class ReplicationSystem : ISystem
             ComponentsManager.Instance.SetComponent<ReplicationMessage>(entityID, msgReplication);
         });
 
-        // Wait until the buffer has all entities
+        // Wait until the buffer has all entities before launching reconciliation
         bool bufferIsFull = msgBuffer.buffer.Count >= ECSManager.Instance.Config.allShapesToSpawn.Count;
         if (bufferIsFull)
         {
@@ -97,8 +97,8 @@ public class ReplicationSystem : ISystem
 
     private static void LaunchReconciliation(MessageBuffer msgBuffer)
     {
-        int maxOffset = 1; // this is how much offset we want to tolerate on each entity before actually reconciling
-        int oldInputIndex = ClientIsUpToDateWithServer(msgBuffer, maxOffset);
+        int MAX_OFFSET = 1; // this is how much offset we want to tolerate on each entity before actually reconciling
+        int oldInputIndex = ClientIsUpToDateWithServer(msgBuffer, MAX_OFFSET);
 
         if (oldInputIndex < 0) return; // We are up to date with the server
 
