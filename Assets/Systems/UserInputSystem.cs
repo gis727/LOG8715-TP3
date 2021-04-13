@@ -86,12 +86,20 @@ public class UserInputSystem : ISystem
                 entityMsg.size = entityShape.size;
                 entityMsg.speed = entityShape.speed;
                 entityMsg.shape = entityShape.shape;
-                entityUserInput.inputHistory.Add(entityMsg);
 
                 if (entityID == clientId && inputDetected)
                 {
+                    if (ECSManager.Instance.Config.enableInputPrediction)
+                    {
+                        entityMsg.inputA = msg.inputA;
+                        entityMsg.inputW = msg.inputW;
+                        entityMsg.inputS = msg.inputS;
+                        entityMsg.inputD = msg.inputD;
+                    }
                     entityUserInput.pendingInputsMessages.Add(msg);
                 }
+
+                entityUserInput.inputHistory.Add(entityMsg);
 
                 ComponentsManager.Instance.SetComponent<UserInputComponent>(entityID, entityUserInput);
             });
@@ -99,24 +107,24 @@ public class UserInputSystem : ISystem
             // clear old messages
             ComponentsManager.Instance.ForEach<UserInputComponent>((entityID,entityUserInput) =>
             {
-                entityUserInput.inputHistory.RemoveAll(x => (currentTime - x.timeCreated) > 5000);
+                entityUserInput.inputHistory.RemoveAll(x => (currentTime - x.timeCreated) > 2000);
                 ComponentsManager.Instance.SetComponent<UserInputComponent>(entityID, entityUserInput);
             });
         }
     }
-
     void DoServerStuff()
     {
         int speed = 4;
         ComponentsManager.Instance.ForEach<UserInputComponent>((entityID, userInput) =>
         {
-            bool shapeSpawned = ComponentsManager.Instance.TryGetComponent(entityID, out ShapeComponent shapeComponent);
+            bool shapeSpawned = ComponentsManager.Instance.TryGetComponent(entityID, out ShapeComponent shapeComp);
             bool isPlayer = ComponentsManager.Instance.EntityContains<PlayerComponent>(entityID);
             if (shapeSpawned && isPlayer)
             {
-                shapeComponent.speed = Vector2.zero;
                 for (int i=0; i < userInput.pendingInputsMessages.Count; i++)
                 {   
+                    ShapeComponent shapeComponent = ComponentsManager.Instance.GetComponent<ShapeComponent>(entityID);
+                    shapeComponent.speed = Vector2.zero;
                     var msg = userInput.pendingInputsMessages[i];
                     if (msg.inputA == 1)
                     {
@@ -134,14 +142,23 @@ public class UserInputSystem : ISystem
                     {
                         shapeComponent.speed = Vector2.right * speed;
                     }
-
-                    userInput.fastForwardInputsMessages = new List<ReplicationMessage>{msg};
                     ComponentsManager.Instance.SetComponent<ShapeComponent>(entityID, shapeComponent);
+
+                    // prepare fast forward
+                    // set a replication message to let the world know that this entity is concerned by fast forward
+                    userInput.fastForwardInputsMessages = new List<ReplicationMessage>{new ReplicationMessage()};
                     ComponentsManager.Instance.SetComponent<UserInputComponent>(entityID, userInput);
+                    
+                    // fast forward (simulate input)
                     ECSManager.Instance.FastForward(1);
+
+                    // reset 0 speed
+                    ShapeComponent newShapeComponent = ComponentsManager.Instance.GetComponent<ShapeComponent>(entityID);
+                    newShapeComponent.speed = Vector2.zero;
+                    ComponentsManager.Instance.SetComponent<ShapeComponent>(entityID, newShapeComponent);
                 }
                 userInput.pendingInputsMessages.Clear();
-                ComponentsManager.Instance.SetComponent<ShapeComponent>(entityID, shapeComponent);
+                ComponentsManager.Instance.SetComponent<UserInputComponent>(entityID, userInput);
             }
         });
     }

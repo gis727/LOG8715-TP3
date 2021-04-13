@@ -26,7 +26,6 @@ public class PositionUpdateSystem : ISystem {
                 {
                     shapeComponent.pos = GetNewPosition(shapeComponent.pos, shapeComponent.speed, deltaTime);
                     ComponentsManager.Instance.SetComponent<ShapeComponent>(entityID, shapeComponent);
-                    userInput.fastForwardInputsMessages.Clear();
                 }
             }
             else
