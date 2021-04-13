@@ -73,6 +73,8 @@ public class SpawnSystem : ISystem
                     entityConfig.shape = msgReplication.shape;
                     entityConfig.size = msgReplication.size;
                     entityConfig.initialPos = msgReplication.pos;
+
+                    // spawn other players as player entities in other to handle collisions during extrapolation
                     if (msgReplication.shape == Config.Shape.Circle && !(msgReplication.entityId == clientId))
                     {
                         ShapeComponent shapeComponent;
