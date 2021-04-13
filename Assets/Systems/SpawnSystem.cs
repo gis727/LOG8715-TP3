@@ -15,7 +15,6 @@ public class SpawnSystem : ISystem
 
     public void UpdateSystem()
     {
-
         if (ECSManager.Instance.NetworkManager.isServer)
         {
             //Only server spawns shapes from config
@@ -74,7 +73,24 @@ public class SpawnSystem : ISystem
                     entityConfig.shape = msgReplication.shape;
                     entityConfig.size = msgReplication.size;
                     entityConfig.initialPos = msgReplication.pos;
-                    SpawnEntity(msgReplication.entityId, msgReplication.speed, entityConfig);
+                    if (msgReplication.shape == Config.Shape.Circle && !(msgReplication.entityId == clientId))
+                    {
+                        ShapeComponent shapeComponent;
+                        if (!ComponentsManager.Instance.TryGetComponent(msgReplication.entityId, out shapeComponent))
+                        {
+                            shapeComponent = new ShapeComponent();
+                            shapeComponent.pos = entityConfig.initialPos;
+                            shapeComponent.speed = msgReplication.speed;
+                            shapeComponent.shape = entityConfig.shape;
+                            shapeComponent.size = entityConfig.size;
+                            ComponentsManager.Instance.SetComponent<ShapeComponent>(msgReplication.entityId, shapeComponent);
+                        }
+                        SpawnPlayerEntity(msgReplication.entityId, shapeComponent);
+                    }
+                    else
+                    {
+                        SpawnEntity(msgReplication.entityId, msgReplication.speed, entityConfig);
+                    }
                 }
                 spawnInfo.replicatedEntitiesToSpawn.Clear();
 
@@ -93,6 +109,7 @@ public class SpawnSystem : ISystem
         shapeData.size = entityConfig.size;
         ComponentsManager.Instance.SetComponent<ShapeComponent>(entityId, shapeData);
         ComponentsManager.Instance.SetComponent<EntityComponent>(entityId, new EntityComponent(entityId));
+        ComponentsManager.Instance.SetComponent<UserInputComponent>(entityId, new UserInputComponent(0));
     }
 
     public void SpawnPlayerEntity(uint playerId, ShapeComponent shapeData)
@@ -104,5 +121,6 @@ public class SpawnSystem : ISystem
         SpawnEntity(playerId, new Vector2(), entityConfig);
         PlayerComponent playerComponent = new PlayerComponent() { playerId = playerId };
         ComponentsManager.Instance.SetComponent<PlayerComponent>(playerId, playerComponent);
+        ComponentsManager.Instance.SetComponent<UserInputComponent>(playerId, new UserInputComponent(0));
     }
 }
