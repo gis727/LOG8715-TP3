@@ -33,7 +33,6 @@ internal class ComponentsManager : Singleton<ComponentsManager>
         ClearComponents<CollisionEventComponent>();
         ClearComponents<UserInputComponent>();
         ClearComponents<MessageBuffer>();
-
     }
 
     private Dictionary<Type, Dictionary<uint, IComponent>> _allComponents = new Dictionary<Type, Dictionary<uint, IComponent>>();

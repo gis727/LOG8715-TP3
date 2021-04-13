@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using UnityEngine;
 public struct UserInputComponent : IComponent
 {
     public List<ReplicationMessage> inputHistory;
