@@ -14,15 +14,15 @@ public class ReplicationSystem : ISystem
 
     public void UpdateSystem()
     {
-        
-        if (ECSManager.Instance.NetworkManager.isServer && !ECSManager.Instance.RunningFastForward)
+        if (ECSManager.Instance.RunningFastForward) return;
+
+        if (ECSManager.Instance.NetworkManager.isServer)
         {
             UpdateSystemServer();
         }
         else if (ECSManager.Instance.NetworkManager.isClient)
         {
-            if (ECSManager.Instance.RunningFastForward) UpdateClientInFastForward();
-            else UpdateSystemClient();
+            UpdateSystemClient();
         }
     }
 
@@ -146,38 +146,5 @@ public class ReplicationSystem : ISystem
             }
         }
         return upToDateWithServer? -1: oldInputIndex;
-    }
-
-    private void UpdateClientInFastForward()
-    {
-        uint clientId = (uint)ECSManager.Instance.NetworkManager.LocalClientId;
-        var inputs = ComponentsManager.Instance.GetComponent<UserInputComponent>(clientId);
-
-        if (inputs.fastForwardInputsMessages.Count > 0)
-        {
-            var shape = ComponentsManager.Instance.GetComponent<ShapeComponent>(clientId);
-            shape.speed = Vector2.zero;
-
-            // Pop input
-            ReplicationMessage currentInput = inputs.fastForwardInputsMessages[0];
-            inputs.fastForwardInputsMessages.RemoveAt(0);
-
-            // Apply input
-            Utils.GetUserInput(ref currentInput, ref shape, false);
-            ComponentsManager.Instance.SetComponent<ShapeComponent>(clientId, shape);
-            ComponentsManager.Instance.SetComponent<UserInputComponent>(clientId, inputs);
-            
-            // Update history
-            ComponentsManager.Instance.ForEach<ShapeComponent, UserInputComponent>((entityID, entityShape, entityUserInput) =>
-            {
-                int historicalInputIndex = entityUserInput.inputHistory.FindIndex(x => x.timeCreated == currentInput.timeCreated);
-                if (historicalInputIndex >= 0) 
-                {
-                    ReplicationMessage msg = entityUserInput.inputHistory[historicalInputIndex];
-                    msg.pos = currentInput.pos;
-                    ComponentsManager.Instance.SetComponent<UserInputComponent>(entityID, entityUserInput);
-                }
-            });
-        }
     }
 }
