@@ -41,7 +41,7 @@ public class UserInputSystem : ISystem
             msg.inputD = 0;
 
             // Get user inputs
-            bool inputDetected = GetUserInput(ref msg, ref shapeComponent, true);
+            bool inputDetected = Utils.GetUserInput(ref msg, ref shapeComponent, true);
 
             // Save the inputs if required
             if (ECSManager.Instance.Config.enableInputPrediction) ComponentsManager.Instance.SetComponent<ShapeComponent>(clientId, shapeComponent);
@@ -95,7 +95,7 @@ public class UserInputSystem : ISystem
                     
                     // Get the user input coming from the client
                     ReplicationMessage msg = userInput.pendingInputsMessages[i];
-                    GetUserInput(ref msg, ref shapeComponent, false);
+                    Utils.GetUserInput(ref msg, ref shapeComponent, false);
 
                     ComponentsManager.Instance.SetComponent<ShapeComponent>(entityID, shapeComponent);
 
@@ -117,39 +117,6 @@ public class UserInputSystem : ISystem
         });
     }
 
-    // if 'readFromInput == true': Reads the inputs from user keyboard and populates 'msg' and 'shapeComponent' accordingly
-    // else: Reads the inputs inside 'msg' and populates 'shapeComponent' accordingly
-    private bool GetUserInput(ref ReplicationMessage msg, ref ShapeComponent shapeComponent, bool readFromInput)
-    {
-        int speed = 4;
-        bool inputDetected = false;
-        shapeComponent.speed = Vector2.zero;
-        if ((!readFromInput && msg.inputA == 1) || (readFromInput && Input.GetKey(KeyCode.A)))
-        {
-            if (readFromInput) msg.inputA = 1;
-            shapeComponent.speed = Vector2.left * speed;
-            inputDetected = true;
-        }
-        else if ((!readFromInput && msg.inputW == 1) || (readFromInput && Input.GetKey(KeyCode.W)))
-        {
-            if (readFromInput) msg.inputW = 1;
-            shapeComponent.speed = Vector2.up * speed;
-            inputDetected = true;
-        }
-        else if ((!readFromInput && msg.inputS == 1) || (readFromInput && Input.GetKey(KeyCode.S)))
-        {
-            if (readFromInput) msg.inputS = 1;
-            shapeComponent.speed = Vector2.down * speed;
-            inputDetected = true;
-        }
-        else if ((!readFromInput && msg.inputD == 1) || (readFromInput && Input.GetKey(KeyCode.D)))
-        {
-            if (readFromInput) msg.inputD = 1;
-            shapeComponent.speed = Vector2.right * speed;
-            inputDetected = true;
-        }
-        return inputDetected;
-    }
 
     // Clears inputs older than 'maxAge' from the input history
     private void ClearOldInputs(int currentTime)
