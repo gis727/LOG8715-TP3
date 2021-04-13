@@ -65,27 +65,17 @@ public class ECSManager : MonoBehaviour {
     #region System Management
     private List<ISystem> _allSystems = new List<ISystem>();
 
-    private int _currentSystemIndex;
     private void FixedUpdate()
     {
         _frameRate = 1.0f / Time.deltaTime;
-        _currentSystemIndex = 0;
         foreach (var system in _allSystems)
         {
             system.UpdateSystem();
-            _currentSystemIndex++;
         }
     }
     public bool RunningFastForward = false;
     public void FastForward(int frames)
     {
-        // save the current running system
-        int currentSystemIndex = _currentSystemIndex;
-
-        // finish executing all systems for current frame
-        //for (int i=++_currentSystemIndex; i < _allSystems.Count; i++) _allSystems[i].UpdateSystem();
-
-        // run the required frames
         RunningFastForward = true;
         for (int i=0; i < frames; i++)
         {
@@ -95,9 +85,6 @@ public class ECSManager : MonoBehaviour {
             }
         }
         RunningFastForward = false;
-        
-        // restore current running system
-        _currentSystemIndex = currentSystemIndex;
     }
 
     private void Awake()
