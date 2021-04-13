@@ -1,5 +1,4 @@
-﻿using UnityEngine;
-public class NetworkMessageSystem : ISystem
+﻿public class NetworkMessageSystem : ISystem
 {
     public string Name
     {
@@ -34,9 +33,8 @@ public class NetworkMessageSystem : ISystem
 
         if (ECSManager.Instance.NetworkManager.isClient)
         {
-            // TODO
-            bool inputExist = ComponentsManager.Instance.TryGetComponent((uint)ECSManager.Instance.NetworkManager.LocalClientId, out UserInputComponent userInput);
-            if (inputExist)
+            uint clientId = (uint)ECSManager.Instance.NetworkManager.LocalClientId;
+            if (ComponentsManager.Instance.TryGetComponent(clientId, out UserInputComponent userInput))
             {
                 for (int i=0; i < userInput.pendingInputsMessages.Count; i++)
                 {
