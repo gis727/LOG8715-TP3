@@ -18,6 +18,7 @@ public class RegisterSystems
         toRegister.Add(new BounceBackSystem());
         toRegister.Add(new PositionUpdateSystem());
         toRegister.Add(new ReplicationSystem());
+        toRegister.Add(new ReconciliationSystem());
         toRegister.Add(new FastForwardSystem());
         toRegister.Add(new NetworkMessageSystem());
         toRegister.Add(new ClearEndOfFrameComponentsSystem());
