@@ -1,10 +1,6 @@
 ﻿using System.IO;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 using MLAPI;
 using MLAPI.Messaging;
-using MLAPI.Serialization;
 using MLAPI.Serialization.Pooled;
 
 public class CustomNetworkManager : NetworkingManager
@@ -112,6 +108,7 @@ public class CustomNetworkManager : NetworkingManager
     {
         CustomMessagingManager.RegisterNamedMessageHandler("Replication", HandleReplicationMessage);
     }
+
 
     private void HandleServerReplicationMessage(ulong clientId, Stream stream)
     {
