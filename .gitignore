@@ -58,3 +58,9 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+# Builds artifact
+/[Mm]onoBleedingEdge/
+/TP3-ECS_Data/
+UnityCrashHandler64.exe
+UnityPlayer.dll
+TP3-ECS.exe
