@@ -21,7 +21,7 @@ public class ReplicationSystem : ISystem
         }
         else if (ECSManager.Instance.NetworkManager.isClient)
         {
-            if (ECSManager.Instance.RunningFastForward) UpdateClientFastForward();
+            if (ECSManager.Instance.RunningFastForward) UpdateClientInFastForward();
             else UpdateSystemClient();
         }
     }
@@ -52,11 +52,9 @@ public class ReplicationSystem : ISystem
             ComponentsManager.Instance.SetComponent<MessageBuffer>(new EntityComponent(0), msgBuffer);
         }
         
-        // apply state from server
         // can receive only one replication message per entity for simplicity
         ComponentsManager.Instance.ForEach<ReplicationMessage>((entityID, msgReplication) => {
             if (msgReplication.handled) return;
-            
             if (msgBuffer.buffer.Count < ECSManager.Instance.Config.allShapesToSpawn.Count) msgBuffer.buffer.Add(msgReplication);
 
             // Updating entity info from message's state
@@ -86,49 +84,23 @@ public class ReplicationSystem : ISystem
             ComponentsManager.Instance.SetComponent<ReplicationMessage>(entityID, msgReplication);
         });
 
-        
-        if (msgBuffer.buffer.Count >= ECSManager.Instance.Config.allShapesToSpawn.Count)
+        // Wait until the buffer has all entities
+        bool bufferIsFull = msgBuffer.buffer.Count >= ECSManager.Instance.Config.allShapesToSpawn.Count;
+        if (bufferIsFull)
         {
             msgBuffer.buffer.Sort((x,y) => (int)(x.timeCreated - y.timeCreated));
-            
-            //Debug.Log("========= BEGIN =========");
-
-            // consume
             if (ECSManager.Instance.Config.enablDeadReckoning) LaunchReconciliation(msgBuffer);
-
-            // clear
             msgBuffer.buffer.Clear();
-            //Debug.Log("========= END =========");
         }
         ComponentsManager.Instance.SetComponent<MessageBuffer>(new EntityComponent(0), msgBuffer);
     }
 
     private static void LaunchReconciliation(MessageBuffer msgBuffer)
     {
-        int maxOffset = 1;
+        int maxOffset = 1; // this is how much offset we want to tolerate on each entity before actually reconciling
+        int oldInputIndex = ClientIsUpToDateWithServer(msgBuffer, maxOffset);
 
-        int bufferSize = msgBuffer.buffer.Count;
-        ReplicationMessage lastMsg = msgBuffer.buffer[bufferSize-1];
-        int bufferTime = lastMsg.timeCreated;
-        float lag = Utils.SystemTime - bufferTime + Time.deltaTime;
-
-
-        bool upToDateWithServer = true;
-        int oldIndex = -1;
-        for(int i = 0; i < msgBuffer.buffer.Count; i++)
-        {
-            ReplicationMessage msg = msgBuffer.buffer[i];
-            var userInput = ComponentsManager.Instance.GetComponent<UserInputComponent>(msg.entityId);
-
-            oldIndex = userInput.inputHistory.FindIndex(x => x.timeCreated >= (bufferTime - lag));
-            if (oldIndex >= 0)
-            {
-                float offset = (userInput.inputHistory[oldIndex].pos - msg.pos).magnitude;
-                upToDateWithServer = upToDateWithServer && offset <= maxOffset;
-                //Debug.Log("OFFSET ======> " + offset);
-                if (upToDateWithServer) return;
-            }
-        }
+        if (oldInputIndex < 0) return; // We are up to date with the server
 
         // Accept server dictatorship
         foreach (ReplicationMessage msg in msgBuffer.buffer)
@@ -143,55 +115,65 @@ public class ReplicationSystem : ISystem
         // Setup fast forward
         uint clientId = (uint)ECSManager.Instance.NetworkManager.LocalClientId;
         var userInputs= ComponentsManager.Instance.GetComponent<UserInputComponent>(clientId);
-        int inputsLength = userInputs.inputHistory.Count - oldIndex;
-        userInputs.fastForwardInputsMessages = userInputs.inputHistory.GetRange(oldIndex, inputsLength);
+        int inputsLength = userInputs.inputHistory.Count - oldInputIndex;
+        userInputs.fastForwardInputsMessages = userInputs.inputHistory.GetRange(oldInputIndex, inputsLength);
         ComponentsManager.Instance.SetComponent<UserInputComponent>(clientId, userInputs);
-
         
-        // Simulate inputs
+        // Run fast forward (simulate inputs)
         var userInputComponent = ComponentsManager.Instance.GetComponent<UserInputComponent>(clientId);
         ECSManager.Instance.FastForward(userInputComponent.fastForwardInputsMessages.Count);
     }
 
-    private void UpdateClientFastForward()
+    private static int ClientIsUpToDateWithServer(MessageBuffer msgBuffer, int maxOffset)
+    {
+        // Compute buffer time and network lag
+        int bufferTime = msgBuffer.buffer[msgBuffer.buffer.Count-1].timeCreated;
+        float networkLag = Utils.SystemTime - bufferTime + Time.deltaTime;
+
+        bool upToDateWithServer = true;
+        int oldInputIndex = -1;
+
+        for(int i = 0; i < msgBuffer.buffer.Count; i++)
+        {
+            ReplicationMessage msg = msgBuffer.buffer[i];
+            var userInput = ComponentsManager.Instance.GetComponent<UserInputComponent>(msg.entityId);
+
+            oldInputIndex = userInput.inputHistory.FindIndex(x => x.timeCreated >= (bufferTime - networkLag));
+            if (oldInputIndex >= 0)
+            {
+                float offset = (userInput.inputHistory[oldInputIndex].pos - msg.pos).magnitude;
+                upToDateWithServer = upToDateWithServer && offset <= maxOffset;
+            }
+        }
+        return upToDateWithServer? -1: oldInputIndex;
+    }
+
+    private void UpdateClientInFastForward()
     {
         uint clientId = (uint)ECSManager.Instance.NetworkManager.LocalClientId;
         var inputs = ComponentsManager.Instance.GetComponent<UserInputComponent>(clientId);
+
         if (inputs.fastForwardInputsMessages.Count > 0)
         {
-            //Debug.Log(inputs.inputHistory.Count + "----> " + inputs.fastForwardInputsMessages.Count);
             var shape = ComponentsManager.Instance.GetComponent<ShapeComponent>(clientId);
             shape.speed = Vector2.zero;
-            // pop input
-            var currentInput = inputs.fastForwardInputsMessages[0];
+
+            // Pop input
+            ReplicationMessage currentInput = inputs.fastForwardInputsMessages[0];
             inputs.fastForwardInputsMessages.RemoveAt(0);
-            // apply input
-            int speed = 4;
-            if (currentInput.inputA == 1)
-            {
-                shape.speed = Vector2.left * speed;
-            }
-            else if (currentInput.inputW == 1)
-            {
-                shape.speed = Vector2.up * speed;
-            }
-            else if (currentInput.inputS == 1)
-            {
-                shape.speed = Vector2.down * speed;
-            }
-            else if (currentInput.inputD == 1)
-            {
-                shape.speed = Vector2.right * speed;
-            }
+
+            // Apply input
+            Utils.GetUserInput(ref currentInput, ref shape, false);
             ComponentsManager.Instance.SetComponent<ShapeComponent>(clientId, shape);
             ComponentsManager.Instance.SetComponent<UserInputComponent>(clientId, inputs);
             
+            // Update history
             ComponentsManager.Instance.ForEach<ShapeComponent, UserInputComponent>((entityID, entityShape, entityUserInput) =>
             {
-                var historicalInputIndex = entityUserInput.inputHistory.FindIndex(x => x.timeCreated == currentInput.timeCreated);
+                int historicalInputIndex = entityUserInput.inputHistory.FindIndex(x => x.timeCreated == currentInput.timeCreated);
                 if (historicalInputIndex >= 0) 
                 {
-                    var msg = entityUserInput.inputHistory[historicalInputIndex];
+                    ReplicationMessage msg = entityUserInput.inputHistory[historicalInputIndex];
                     msg.pos = currentInput.pos;
                     ComponentsManager.Instance.SetComponent<UserInputComponent>(entityID, entityUserInput);
                 }
