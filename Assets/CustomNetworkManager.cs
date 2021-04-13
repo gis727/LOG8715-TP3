@@ -105,10 +105,6 @@ public class CustomNetworkManager : NetworkingManager
                 spawnInfo.replicatedEntitiesToSpawn.Add(replicationMessage);
                 ComponentsManager.Instance.SetComponent<SpawnInfo>(new EntityComponent(0), spawnInfo);
             }
-            MessagingInfo messagingInfo = ComponentsManager.Instance.GetComponent<MessagingInfo>(new EntityComponent(0));
-            messagingInfo.currentMessageId = replicationMessage.messageID;
-            if (messagingInfo.localMessageId < 0) messagingInfo.localMessageId = replicationMessage.messageID;
-            ComponentsManager.Instance.SetComponent<MessagingInfo>(new EntityComponent(0), messagingInfo);
         }
     }
 
@@ -138,12 +134,11 @@ public class CustomNetworkManager : NetworkingManager
             ComponentsManager.Instance.SetComponent<UserInputComponent>(msg.entityId, userInputComponent);
         }
     }
+
     public void RegisterServerNetworkHandlers()
     {
-        // TODO
         CustomMessagingManager.RegisterNamedMessageHandler("Replication", HandleServerReplicationMessage);
     }
-
 
 
     public new bool isServer { get { return GetConnectionStatus() == ConnectionStatus.isServer; } }

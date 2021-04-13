@@ -31,15 +31,12 @@ public class UserInputSystem : ISystem
         bool inputDetected = false;
         int speed = 4;
         uint clientId = (uint)ECSManager.Instance.NetworkManager.LocalClientId;
-        bool messagingInfoFound = ComponentsManager.Instance.TryGetComponent(new EntityComponent(0), out MessagingInfo messagingInfo);
-        if (messagingInfoFound) messagingInfo.localMessageId++;
         int currentTime = Utils.SystemTime;
         if (ComponentsManager.Instance.TryGetComponent(clientId, out ShapeComponent shapeComponent))
         {
             ReplicationMessage msg = new ReplicationMessage();
             msg.entityId = clientId;
             msg.timeCreated = currentTime;
-            msg.messageID = messagingInfoFound? messagingInfo.localMessageId: 0;
             msg.entityId = clientId;
             msg.shape = shapeComponent.shape;
             msg.pos = shapeComponent.pos;
@@ -80,7 +77,6 @@ public class UserInputSystem : ISystem
             ComponentsManager.Instance.ForEach<ShapeComponent, UserInputComponent>((entityID, entityShape, entityUserInput) =>
             {
                 ReplicationMessage entityMsg = new ReplicationMessage();
-                entityMsg.messageID = messagingInfoFound? messagingInfo.localMessageId: 0;
                 entityMsg.timeCreated = currentTime;
                 entityMsg.pos = entityShape.pos;
                 entityMsg.size = entityShape.size;
