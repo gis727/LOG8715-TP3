@@ -52,6 +52,7 @@ public class ReplicationSystem : ISystem
             ComponentsManager.Instance.SetComponent<MessageBuffer>(new EntityComponent(0), msgBuffer);
         }
         
+        // apply state from server
         // can receive only one replication message per entity for simplicity
         ComponentsManager.Instance.ForEach<ReplicationMessage>((entityID, msgReplication) => {
             if (msgReplication.handled) return;
