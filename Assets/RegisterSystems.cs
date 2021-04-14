@@ -12,11 +12,14 @@ public class RegisterSystems
         List<ISystem> toRegister = new List<ISystem>();
         // Add your systems
         toRegister.Add(new SpawnSystem());
+        toRegister.Add(new UserInputSystem());
         toRegister.Add(new WallCollisionDetectionSystem());
         toRegister.Add(new CircleCollisionDetectionSystem());
         toRegister.Add(new BounceBackSystem());
         toRegister.Add(new PositionUpdateSystem());
         toRegister.Add(new ReplicationSystem());
+        toRegister.Add(new ReconciliationSystem());
+        toRegister.Add(new FastForwardSystem());
         toRegister.Add(new NetworkMessageSystem());
         toRegister.Add(new ClearEndOfFrameComponentsSystem());
         toRegister.Add(new DisplayShapePositionSystem());

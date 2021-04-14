@@ -11,6 +11,8 @@
     // In charge of sending all messages pending sending
     public void UpdateSystem()
     {
+        if (ECSManager.Instance.RunningFastForward) return;
+
         bool messagingInfoFound = ComponentsManager.Instance.TryGetComponent(new EntityComponent(0), out MessagingInfo messagingInfo);
 
         if (!messagingInfoFound)
@@ -24,12 +26,23 @@
             {
                 msg.messageID = messagingInfo.currentMessageId++;
                 ECSManager.Instance.NetworkManager.SendReplicationMessage(msg);
+                msg.handled = true;
+                ComponentsManager.Instance.SetComponent<ReplicationMessage>(entityID, msg);
             });
         }
 
         if (ECSManager.Instance.NetworkManager.isClient)
         {
-            // TODO
+            uint clientId = (uint)ECSManager.Instance.NetworkManager.LocalClientId;
+            if (ComponentsManager.Instance.TryGetComponent(clientId, out UserInputComponent userInput))
+            {
+                for (int i=0; i < userInput.pendingInputsMessages.Count; i++)
+                {
+                    ReplicationMessage msg = userInput.pendingInputsMessages[i];
+                    ECSManager.Instance.NetworkManager.SendReplicationMessageToServer(msg);
+                }
+                userInput.pendingInputsMessages.Clear();
+            }
         }
 
         ComponentsManager.Instance.SetComponent<MessagingInfo>(new EntityComponent(0), messagingInfo);

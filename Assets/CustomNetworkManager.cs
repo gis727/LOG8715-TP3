@@ -1,10 +1,6 @@
 ﻿using System.IO;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 using MLAPI;
 using MLAPI.Messaging;
-using MLAPI.Serialization;
 using MLAPI.Serialization.Pooled;
 
 public class CustomNetworkManager : NetworkingManager
@@ -57,6 +53,28 @@ public class CustomNetworkManager : NetworkingManager
         }
     }
 
+    public void SendReplicationMessageToServer(ReplicationMessage msg)
+    {
+        using (PooledBitStream stream = PooledBitStream.Get())
+        {
+            using (PooledBitWriter writer = PooledBitWriter.Get(stream))
+            {
+                writer.WriteInt32(msg.messageID);
+                writer.WriteInt32(msg.timeCreated);
+                writer.WriteUInt32(msg.entityId);
+                writer.WriteInt16((byte)msg.shape);
+                writer.WriteVector2(msg.pos);
+                writer.WriteVector2(msg.speed);
+                writer.WriteDouble(msg.size);
+                writer.WriteUInt32(msg.inputA);
+                writer.WriteUInt32(msg.inputW);
+                writer.WriteUInt32(msg.inputS);
+                writer.WriteUInt32(msg.inputD);
+                CustomMessagingManager.SendNamedMessage("Replication", this.ServerClientId, stream, "customChannel");
+            }
+        }
+    }
+
 
     private void HandleReplicationMessage(ulong clientId, Stream stream)
     {
@@ -70,6 +88,7 @@ public class CustomNetworkManager : NetworkingManager
             replicationMessage.pos = reader.ReadVector2();
             replicationMessage.speed = reader.ReadVector2();
             replicationMessage.size = (float)reader.ReadDouble();
+            replicationMessage.handled = false;
             ComponentsManager.Instance.SetComponent<ReplicationMessage>(replicationMessage.entityId, replicationMessage);
             if (!ComponentsManager.Instance.EntityContains<EntityComponent>(replicationMessage.entityId))
             {
@@ -90,11 +109,33 @@ public class CustomNetworkManager : NetworkingManager
         CustomMessagingManager.RegisterNamedMessageHandler("Replication", HandleReplicationMessage);
     }
 
-    public void RegisterServerNetworkHandlers()
+
+    private void HandleServerReplicationMessage(ulong clientId, Stream stream)
     {
-        // TODO
+        ReplicationMessage msg = new ReplicationMessage();
+        using (PooledBitReader reader = PooledBitReader.Get(stream))
+        {
+            msg.messageID = reader.ReadInt32();
+            msg.timeCreated = reader.ReadInt32();
+            msg.entityId = reader.ReadUInt32();
+            msg.shape = (Config.Shape)reader.ReadInt16();
+            msg.pos = reader.ReadVector2();
+            msg.speed = reader.ReadVector2();
+            msg.size = (float)reader.ReadDouble();
+            msg.inputA = reader.ReadUInt32();
+            msg.inputW = reader.ReadUInt32();
+            msg.inputS = reader.ReadUInt32();
+            msg.inputD = reader.ReadUInt32();
+            var userInputComponent = ComponentsManager.Instance.GetComponent<UserInputComponent>(msg.entityId);
+            userInputComponent.pendingInputsMessages.Add(msg);
+            ComponentsManager.Instance.SetComponent<UserInputComponent>(msg.entityId, userInputComponent);
+        }
     }
 
+    public void RegisterServerNetworkHandlers()
+    {
+        CustomMessagingManager.RegisterNamedMessageHandler("Replication", HandleServerReplicationMessage);
+    }
 
 
     public new bool isServer { get { return GetConnectionStatus() == ConnectionStatus.isServer; } }

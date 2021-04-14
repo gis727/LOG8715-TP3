@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PositionUpdateSystem : ISystem {
     public string Name
@@ -19,11 +16,22 @@ public class PositionUpdateSystem : ISystem {
 
     public void UpdateSystem(float deltaTime)
     {
-        ComponentsManager.Instance.ForEach<ShapeComponent>((entityID, shapeComponent) => {
-            shapeComponent.pos = GetNewPosition(shapeComponent.pos, shapeComponent.speed, deltaTime);
-            ComponentsManager.Instance.SetComponent<ShapeComponent>(entityID, shapeComponent);
+        ComponentsManager.Instance.ForEach<ShapeComponent, UserInputComponent>((entityID, shapeComponent, userInput) => {
+            if (ECSManager.Instance.NetworkManager.IsServer)
+            {
+                if ((ECSManager.Instance.RunningFastForward && userInput.fastForwardInputsMessages.Count > 0) || !ECSManager.Instance.RunningFastForward)
+                {
+                    shapeComponent.pos = GetNewPosition(shapeComponent.pos, shapeComponent.speed, deltaTime);
+                    ComponentsManager.Instance.SetComponent<ShapeComponent>(entityID, shapeComponent);
+                }
+            }
+            else
+            {
+                shapeComponent.pos = GetNewPosition(shapeComponent.pos, shapeComponent.speed, deltaTime);
+                ComponentsManager.Instance.SetComponent<ShapeComponent>(entityID, shapeComponent);
+            }
         });
-}
+    }
 
     public static Vector2 GetNewPosition(Vector2 position, Vector2 speed)
     {

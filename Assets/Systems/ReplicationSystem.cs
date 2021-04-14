@@ -14,6 +14,8 @@ public class ReplicationSystem : ISystem
 
     public void UpdateSystem()
     {
+        if (ECSManager.Instance.RunningFastForward) return;
+
         if (ECSManager.Instance.NetworkManager.isServer)
         {
             UpdateSystemServer();
@@ -43,9 +45,19 @@ public class ReplicationSystem : ISystem
     }
     public static void UpdateSystemClient()
     {
+        MessageBuffer msgBuffer;
+        if (!ComponentsManager.Instance.TryGetComponent<MessageBuffer>(new EntityComponent(0), out msgBuffer))
+        {
+            msgBuffer = new MessageBuffer();
+            ComponentsManager.Instance.SetComponent<MessageBuffer>(new EntityComponent(0), msgBuffer);
+        }
+        
         // apply state from server
         // can receive only one replication message per entity for simplicity
         ComponentsManager.Instance.ForEach<ReplicationMessage>((entityID, msgReplication) => {
+            if (msgReplication.handled) return;
+            if (msgBuffer.buffer.Count < ECSManager.Instance.Config.allShapesToSpawn.Count) msgBuffer.buffer.Add(msgReplication);
+
             // Updating entity info from message's state
             var component = ComponentsManager.Instance.GetComponent<ShapeComponent>(msgReplication.entityId);
 
@@ -61,13 +73,16 @@ public class ReplicationSystem : ISystem
                 spawnInfo.replicatedEntitiesToSpawn.Add(msgReplication);
                 ComponentsManager.Instance.SetComponent<SpawnInfo>(new EntityComponent(0), spawnInfo);
             }
-            else
+            else if (!ECSManager.Instance.Config.enablDeadReckoning)
             {
                 component.pos = msgReplication.pos;
                 component.speed = msgReplication.speed;
                 component.size = msgReplication.size;
                 ComponentsManager.Instance.SetComponent<ShapeComponent>(msgReplication.entityId, component);
             }
+            
+            msgReplication.handled = true;
+            ComponentsManager.Instance.SetComponent<ReplicationMessage>(entityID, msgReplication);
         });
     }
 }

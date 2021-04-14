@@ -73,6 +73,19 @@ public class ECSManager : MonoBehaviour {
             system.UpdateSystem();
         }
     }
+    public bool RunningFastForward = false;
+    public void FastForward(int frames)
+    {
+        RunningFastForward = true;
+        for (int i=0; i < frames; i++)
+        {
+            foreach (var system in _allSystems)
+            {
+                system.UpdateSystem();
+            }
+        }
+        RunningFastForward = false;
+    }
 
     private void Awake()
     {
